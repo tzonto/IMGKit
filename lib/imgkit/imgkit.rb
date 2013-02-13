@@ -1,3 +1,5 @@
+require 'timeout'
+
 class IMGKit
   KNOWN_FORMATS = [:jpg, :jpeg, :png, :tiff, :tif]
 
@@ -68,47 +70,36 @@ class IMGKit
     end
   end
 
-  if Open3.method_defined? :capture3
-    def capture3(*opts)
-      Open3.capture3 *opts
-    end
-  else
-    # Lifted from ruby 1.9.2-p290 sources for ruby 1.8 compatibility
-    # and modified to work on 1.8
-    def capture3(*cmd, &block)
-      if Hash === cmd.last
-        opts = cmd.pop.dup
-      else
-        opts = {}
-      end
-
-      stdin_data = opts.delete(:stdin_data) || ''
-      binmode = opts.delete(:binmode)
-
-      Open3.popen3(*cmd) {|i, o, e|
-        if binmode
-          i.binmode
-          o.binmode
-          e.binmode
-        end
-        out_reader = Thread.new { o.read }
-        err_reader = Thread.new { e.read }
-        i.write stdin_data
-        i.close
-        [out_reader.value, err_reader.value]
-      }
-    end
-  end
-
   def to_img(format = nil)
     append_stylesheets
     set_format(format)
-
     opts = @source.html? ? {:stdin_data => @source.to_s} : {}
-    result, stderr = capture3(*(command + [opts]))
+
+    pipe = nil
+    begin
+      cmd = command.join(" ")
+      pipe = IO.popen(cmd, "r+")
+      if @source.html?
+        pipe.write @source.to_s
+        pipe.close_write
+      end
+    rescue Exception => e
+      raise CommandFailedError.new(command.join(" "), @stderr)
+    end
+    
+    status, result = [nil, ""]
+    begin
+      status = Timeout::timeout(IMGKit.configuration.timeout_ms / 1000.0) {
+        pid, status = Process.waitpid2(pipe.pid)
+      }
+      result = pipe.gets(nil)
+    rescue Timeout::Error
+      Process.kill("KILL", pipe.pid)
+      result = pipe.gets(nil)
+    end
     result.force_encoding("ASCII-8BIT") if result.respond_to? :force_encoding
 
-    raise CommandFailedError.new(command.join(' '), stderr) if result.size == 0
+    raise CommandFailedError.new(command.join(' '), @stderr) if result.size == 0
     result
   end
 
