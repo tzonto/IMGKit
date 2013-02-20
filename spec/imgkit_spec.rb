@@ -33,7 +33,7 @@ describe IMGKit do
     it "should set a default timeout" do
       imgkit = IMGKit.new('<h1>Oh Hai</h1>')
       imgkit.options.length.should be 1
-      IMGKit.configuration.timeout_ms.should be 2000
+      IMGKit.configuration.timeout_ms.should be 5000
     end
 
 

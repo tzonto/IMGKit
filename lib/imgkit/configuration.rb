@@ -5,9 +5,9 @@ class IMGKit
     def initialize
       @meta_tag_prefix = 'imgkit-'
       @wkhtmltoimage   = '/usr/local/bin/wkhtmltoimage'
-      @default_options = {:height => 1000}
+      @default_options = {:height => 1000, 'load-error-handling' => 'ignore'}
       @default_format  = :jpg
-      @timeout_ms      = 2000
+      @timeout_ms      = 5000
     end
   end
 

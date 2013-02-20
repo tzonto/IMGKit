@@ -50,13 +50,18 @@ class IMGKit
     args = [executable]
     args += normalize_options(@options).to_a.flatten.compact
 
-    if @source.html?
-      args << '-' # Get HTML from stdin
+    if @input
+      args << @input.path
     else
-      args << @source.to_s
+      if @source.html?
+        args << '-' # Get HTML from stdin
+      else
+        args << @source.to_s
+      end
     end
 
-    args << '-' # Read IMG from stdout
+    args << @output.path
+
     args
   end
 
@@ -76,13 +81,15 @@ class IMGKit
     opts = @source.html? ? {:stdin_data => @source.to_s} : {}
 
     pipe = nil
-    begin
+    @input  = Tempfile.new("imgkit-in")
+    @output = Tempfile.new("imgkit-out")
+    @output.close
+    @input.write(@source.to_s)
+    @input.close
+    begin                 
       cmd = command.join(" ")
       pipe = IO.popen(cmd, "r+")
-      if @source.html?
-        pipe.write @source.to_s
-        pipe.close_write
-      end
+      
     rescue Exception => e
       raise CommandFailedError.new(command.join(" "), @stderr)
     end
@@ -92,11 +99,13 @@ class IMGKit
       status = Timeout::timeout(IMGKit.configuration.timeout_ms / 1000.0) {
         pid, status = Process.waitpid2(pipe.pid)
       }
-      result = pipe.gets(nil)
     rescue Timeout::Error
       Process.kill("KILL", pipe.pid)
-      result = pipe.gets(nil)
     end
+    
+    result = File.open(@output.path).read
+    @input.unlink
+    @output.unlink
     result.force_encoding("ASCII-8BIT") if result.respond_to? :force_encoding
 
     raise CommandFailedError.new(command.join(' '), @stderr) if result.size == 0
