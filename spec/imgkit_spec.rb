@@ -71,9 +71,9 @@ describe IMGKit do
       imgkit.command[imgkit.command.index('--custom-header') + 2].should == 'some user agent'
     end
 
-    it "read the source from stdin if it is html" do
+    it "read the source from a temporary file if it is html" do
       imgkit = IMGKit.new('html')
-      imgkit.command[-2..-1].should == ['-', '-']
+      imgkit.command[-2].should_not == '-'
     end
 
     it "specify the URL to the source if it is a url" do
@@ -295,8 +295,7 @@ describe IMGKit do
 
     it "should not allow shell injection in options" do
       imgkit = IMGKit.new('html', :password => "blah\"; touch #{@test_path} #")
-      imgkit.to_img
-      File.exist?(@test_path).should be_false
+      lambda { imgkit.to_img }.should raise_error(IMGKit::CommandFailedError)
     end
   end
 end

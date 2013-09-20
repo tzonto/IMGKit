@@ -49,7 +49,10 @@ class IMGKit
     args += normalize_options(@options).to_a.flatten.compact
 
     if @source.html?
-      args << '-' # Get HTML from stdin
+      html_file = Tempfile.open ['file', '.html']
+      html_file.write @source.to_s
+      html_file.close
+      args << html_file.path
     else
       args << @source.to_s
     end
@@ -104,11 +107,10 @@ class IMGKit
     append_stylesheets
     set_format(format)
 
-    opts = @source.html? ? {:stdin_data => @source.to_s} : {}
-    result, stderr = capture3(*(command + [opts]))
+    result = `#{command.join ' '}`
     result.force_encoding("ASCII-8BIT") if result.respond_to? :force_encoding
 
-    raise CommandFailedError.new(command.join(' '), stderr) if result.size == 0
+    raise CommandFailedError.new(command.join(' '), '') if result.size == 0
     result
   end
 
