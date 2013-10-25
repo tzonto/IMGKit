@@ -1,13 +1,14 @@
 class IMGKit
   class Configuration
-    attr_accessor :meta_tag_prefix, :wkhtmltoimage, :default_options, :default_format
+    attr_accessor :meta_tag_prefix, :wkhtmltoimage, :default_options, :default_format, :timeout_ms
 
     def initialize
       @meta_tag_prefix = 'imgkit-'
-      @default_options = {:height => 1000}
+      @default_options = {:height => 1000, 'load-error-handling' => 'ignore'}
       @default_format  = :jpg
       @wkhtmltoimage ||= (defined?(Bundler::GemfileError) ? `bundle exec which wkhtmltoimage` : `which wkhtmltoimage`).chomp
       @wkhtmltoimage = '/usr/local/bin/wkhtmltoimage' if @wkhtmltoimage.strip.empty?  # Fallback
+      @timeout_ms      = 5000
     end
   end
 

@@ -4,3 +4,4 @@ pkg/*
 test.sh
 .rvmrc
 vendor
+*.orig

@@ -1,3 +1,5 @@
+require 'timeout'
+
 class IMGKit
   KNOWN_FORMATS = [:jpg, :jpeg, :png, :tiff, :tif]
 
@@ -48,16 +50,18 @@ class IMGKit
     args = [executable]
     args += normalize_options(@options).to_a.flatten.compact
 
-    if @source.html?
-      html_file = Tempfile.open ['file', '.html']
-      html_file.write @source.to_s
-      html_file.close
-      args << html_file.path
+    if @input
+      args << @input.path
     else
-      args << @source.to_s
+      if @source.html?
+        args << '-' # Get HTML from stdin
+      else
+        args << @source.to_s
+      end
     end
 
-    args << '-' # Read IMG from stdout
+    args << @output.path
+
     args
   end
 
@@ -71,46 +75,40 @@ class IMGKit
     end
   end
 
-  if Open3.respond_to? :capture3
-    def capture3(*opts)
-      Open3.capture3 *opts
-    end
-  else
-    # Lifted from ruby 1.9.2-p290 sources for ruby 1.8 compatibility
-    # and modified to work on 1.8
-    def capture3(*cmd, &block)
-      if Hash === cmd.last
-        opts = cmd.pop.dup
-      else
-        opts = {}
-      end
-
-      stdin_data = opts.delete(:stdin_data) || ''
-      binmode = opts.delete(:binmode)
-
-      Open3.popen3(*cmd) {|i, o, e|
-        if binmode
-          i.binmode
-          o.binmode
-          e.binmode
-        end
-        out_reader = Thread.new { o.read }
-        err_reader = Thread.new { e.read }
-        i.write stdin_data
-        i.close
-        [out_reader.value, err_reader.value]
-      }
-    end
-  end
-
   def to_img(format = nil)
     append_stylesheets
     set_format(format)
+    opts = @source.html? ? {:stdin_data => @source.to_s} : {}
 
-    result = `#{command.join ' '}`
+    pipe = nil
+    @input  = Tempfile.new("imgkit-in")
+    @output = Tempfile.new("imgkit-out")
+    @output.close
+    @input.write(@source.to_s)
+    @input.close
+    begin                 
+      cmd = command.join(" ")
+      pipe = IO.popen(cmd, "r+")
+      
+    rescue Exception => e
+      raise CommandFailedError.new(command.join(" "), @stderr)
+    end
+    
+    status, result = [nil, ""]
+    begin
+      status = Timeout::timeout(IMGKit.configuration.timeout_ms / 1000.0) {
+        pid, status = Process.waitpid2(pipe.pid)
+      }
+    rescue Timeout::Error
+      Process.kill("KILL", pipe.pid)
+    end
+    
+    result = File.open(@output.path).read
+    @input.unlink
+    @output.unlink
     result.force_encoding("ASCII-8BIT") if result.respond_to? :force_encoding
 
-    raise CommandFailedError.new(command.join(' '), '') if result.size == 0
+    raise CommandFailedError.new(command.join(' '), @stderr) if result.size == 0
     result
   end
 
