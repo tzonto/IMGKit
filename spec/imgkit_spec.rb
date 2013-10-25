@@ -26,13 +26,13 @@ describe IMGKit do
 
     it "should set a default height" do
       imgkit = IMGKit.new('<h1>Oh Hai</h1>')
-      imgkit.options.length.should be 1
+      imgkit.options.length.should be 2
       imgkit.options[:height].should be 1000
     end
 
     it "should set a default timeout" do
       imgkit = IMGKit.new('<h1>Oh Hai</h1>')
-      imgkit.options.length.should be 1
+      imgkit.options.length.should be 2
       IMGKit.configuration.timeout_ms.should be 5000
     end
 
@@ -53,7 +53,6 @@ describe IMGKit do
     it "should contstruct the correct command" do
       imgkit = IMGKit.new('html')
       imgkit.command[0].should include('wkhtmltoimage')
-      imgkit.command.should include('-')
     end
 
     it "should parse the options into a cmd line friedly format" do
@@ -76,21 +75,22 @@ describe IMGKit do
       imgkit.command[imgkit.command.index('--custom-header') + 1].should == 'User-Agent'
       imgkit.command[imgkit.command.index('--custom-header') + 2].should == 'some user agent'
     end
-
-    it "read the source from stdin if it is html" do
-      imgkit = IMGKit.new('html')
-      imgkit.command[-2..-1].should == ['-', '-']
-    end
+    
+    #Using files now 
+    # it "read the source from stdin if it is html" do
+    #   imgkit = IMGKit.new('html')
+    #   imgkit.command[-2..-1].should == ['-', '-']
+    # end
 
     it "specify the URL to the source if it is a url" do
       imgkit = IMGKit.new('http://google.com')
-      imgkit.command[-2..-1].should == ['http://google.com', '-']
+      imgkit.command[-2..-2].should == ['http://google.com']
     end
 
     it "should specify the path to the source if it is a file" do
       file_path = File.join(SPEC_ROOT,'fixtures','example.html')
       imgkit = IMGKit.new(File.new(file_path))
-      imgkit.command[-2..-1].should == [file_path, '-']
+      imgkit.command[-2..-2].should == [file_path]
     end
 
     it "should detect special imgkit meta tags" do
@@ -181,11 +181,12 @@ describe IMGKit do
     #   lambda { imgkit.to_img }.should raise_error(IMGKit::CommandFailedError)
     # end
 
-    it "should be able to handle lots of error output" do
-      set_wkhtmltoimage_binary 'warning_binary'
-      imgkit = IMGKit.new("<html><body>Hai!</body></html>")
-      imgkit.to_img.should == "result\n"
-    end
+    #Skip this test don't read from stderr
+    # it "should be able to handle lots of error output" do
+    #       set_wkhtmltoimage_binary 'warning_binary'
+    #       imgkit = IMGKit.new("<html><body>Hai!</body></html>")
+    #       imgkit.to_img.should == "result\n"
+    #     end
 
     context "when there is no format" do
       it "should fallback to jpg" do

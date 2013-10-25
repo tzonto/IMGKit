@@ -51,11 +51,16 @@ class IMGKit
     args += normalize_options(@options).to_a.flatten.compact
 
     if @source.html?
+      @input  = Tempfile.new(["imgkit-in", ".html"])
+      @input.write(@source.to_s)
+      @input.close
       args << @input.path
     else
       args << @source.to_s
     end
-
+    
+    @output = Tempfile.new("imgkit-out")
+    @output.close
     args << @output.path
 
     args
@@ -77,13 +82,6 @@ class IMGKit
     opts = @source.html? ? {:stdin_data => @source.to_s} : {}
 
     pipe = nil
-    if @source.html?
-      @input  = Tempfile.new(["imgkit-in", ".html"])
-      @input.write(@source.to_s)
-      @input.close
-    end
-    @output = Tempfile.new("imgkit-out")
-    @output.close
     begin                 
       cmd = command.join(" ")
       pipe = IO.popen(cmd, "r+")
@@ -102,8 +100,8 @@ class IMGKit
     end
     
     result = File.open(@output.path).read
-    #@input.unlink
-    #@output.unlink
+    @input.unlink if @input
+    @output.unlink if @output
     result.force_encoding("ASCII-8BIT") if result.respond_to? :force_encoding
 
     raise CommandFailedError.new(command.join(' '), @stderr) if result.size == 0
