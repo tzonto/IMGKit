@@ -3,7 +3,7 @@ $:.push File.expand_path("../lib", __FILE__)
 require "imgkit/version"
 
 Gem::Specification.new do |s|
-  s.name        = "img-kit"
+  s.name        = "imgkit"
   s.version     = IMGKit::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors = ["csquared"]
